@@ -9,6 +9,7 @@ faster-whisper = "*"
 sentencepiece = "*"
 gradio = "*"
 torch = "*"
+sacremoses = "*"
 
 [dev-packages]
 

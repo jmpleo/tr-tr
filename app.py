@@ -4,6 +4,7 @@ from transformers import pipeline
 import os
 import logging
 import traceback
+from datetime import datetime
 
 from style import style_css
 
@@ -49,6 +50,42 @@ def load_translation_model(language):
             return None
     except Exception as e:
         logger.error(f"Failed to load translation model for {language}: {e}")
+        return None
+
+
+def save_to_txt(segments, include_translation=False, filename=None):
+    if filename is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}.txt"
+
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            if not segments:
+                f.write("Речь в аудио не распознана\n")
+                return filename
+
+            for segment in segments:
+                try:
+                    if include_translation and len(segment) == 4:
+                        start, end, text, translation = segment
+                        f.write(f"[{start:.2f}s - {end:.2f}s]\n")
+                        f.write(f"Речь: {text}\n")
+                        f.write(f"Перевод: {translation}\n")
+                        f.write("-" * 40 + "\n")
+                    elif len(segment) == 3:
+                        start, end, text = segment
+                        f.write(f"[{start:.2f}s - {end:.2f}s]\n")
+                        f.write(f"Речь: {text}\n")
+                        f.write("-" * 40 + "\n")
+                except Exception as e:
+                    logger.error(f"Error saving segment to TXT: {e}")
+                    f.write("Ошибка форматирования сегмента\n")
+                    f.write("-" * 40 + "\n")
+
+        logger.info(f"Results saved to: {filename}")
+        return filename
+    except Exception as e:
+        logger.error(f"Failed to save file: {e}")
         return None
 
 
@@ -178,8 +215,26 @@ def process(audio_file, text_en_checkbox, progress=gr.Progress()):
         else:
             segments = list(transcribe(audio_file, progress))
 
+        txt_filename = save_to_txt(segments, text_en_checkbox)
+
         progress(1.0, desc="Обработка завершена!")
-        return format_output(segments, text_en_checkbox)
+
+        html_result = format_output(segments, text_en_checkbox)
+
+        if txt_filename:
+            html_result += f"""
+            <div class='save-info'>
+                <p>Результаты сохранены в файл: <strong>{txt_filename}</strong></p>
+            </div>
+            """
+        else:
+            html_result += """
+            <div class='save-info error'>
+                <p>Не удалось сохранить результаты в файл</p>
+            </div>
+            """
+
+        return html_result
 
     except Exception as e:
         logger.error(f"Processing failed: {e}")
@@ -189,7 +244,7 @@ def process(audio_file, text_en_checkbox, progress=gr.Progress()):
 
 interface = gr.Interface(
     title="Распознавание речи",
-    description="Поддерживаются множество языков для распознования. Перевод доступен только для Иврита и Арабского.",
+    description="Перевод доступен только для Иврита и Арабского. Результаты автоматически сохраняются в текстовый файл.",
     allow_flagging="never",
     css=style_css,
     inputs=[

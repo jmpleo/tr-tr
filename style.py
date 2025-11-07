@@ -44,11 +44,6 @@ style_css = """
     padding: 20px;
 }
 
-.no-speech {
-    text-align: center;
-    padding: 20px;
-}
-
 .progress-info {
     border-radius: 10px;
     padding: 3px;
@@ -65,4 +60,29 @@ style_css = """
     border-radius: 8px;
     margin: 10px 0;
 }
+
+.save-info {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f0f8f0;
+    border: 1px solid #d4edda;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.save-info.error {
+    background-color: #f8f0f0;
+    border-color: #edd4d4;
+}
+
+.save-info p {
+    margin: 0;
+    color: #155724;
+    font-size: 14px;
+}
+
+.save-info.error p {
+    color: #721c24;
+}
+
 """

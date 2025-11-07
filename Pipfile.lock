@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "cb63986d47c76147418c0d5495c7aa9fe63534d796e92b240928eb21529d3428"
+            "sha256": "3e34d7cace2db1c4baf0904e9c5ddba49e73adbb7b19b446732350366d10d683"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -548,6 +548,14 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==3.1.6"
+        },
+        "joblib": {
+            "hashes": [
+                "sha256:3faa5c39054b2f03ca547da9b2f52fde67c06240c31853f306aea97f13647b55",
+                "sha256:4e1f0bdbb987e6d843c70cf43714cb276623def372df3c22fe5266b2670bc241"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==1.5.2"
         },
         "markdown-it-py": {
             "hashes": [
@@ -1596,6 +1604,15 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==0.14.4"
+        },
+        "sacremoses": {
+            "hashes": [
+                "sha256:31e04c98b169bfd902144824d191825cd69220cdb4ae4bcf1ec58a7db5587b1a",
+                "sha256:b6fd5d3a766b02154ed80b962ddca91e1fd25629c0978c7efba21ebccf663934"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.8'",
+            "version": "==0.1.1"
         },
         "safehttpx": {
             "hashes": [
