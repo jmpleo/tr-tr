@@ -21,7 +21,11 @@ class Translation:
                     logging.warning(f"Model path does not exist: {model_path}")
                     return None
 
-                model = pipeline("translation", model=model_path)
+                model = pipeline(
+                    task="translation",
+                    device="cpu",
+                    model=model_path,
+                )
                 self.translation_models[from_lang, target_lang] = model
                 logging.info(f"Translation model for {from_lang}-{target_lang} loaded successfully")
                 return model

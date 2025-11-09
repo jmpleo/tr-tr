@@ -22,21 +22,22 @@ class MainApp:
     def available_transcribe_models():
         return {
             "Systran": [
-                ("small", "faster-whisper-small"),
-                ("medium", "faster-whisper-medium"),
-                ("large v3", "faster-whisper-large-v3"),
-                ("tiny", "faster-whisper-tiny"),
-                #("distil large v2", "faster-distil-whisper-large-v2")
+                ("tiny (~ 1.8 Гб)", "faster-whisper-tiny"),
+                ("smallest (~ 2 Гб)", "faster-whisper-base"),
+                ("small (~ 3 Гб)", "faster-whisper-small"),
+                ("medium (~5 Гб)", "faster-whisper-medium"),
+                ("large v2 (~8 Гб)", "faster-whisper-large-v2"),
+                # ("large v3 (~9.1 Гб)", "faster-whisper-large-v3"),
             ]
         }
 
     @staticmethod
     def available_translate_models():
         return {
-            ('he', 'en'): 'Хельсинки-НЛП/opus-mt-tc-big-he-en',
-            ('he', 'ru'): 'Хельсинки-НЛП/opus-mt-he-ru',
-            ('ar', 'en'): 'Хельсинки-НЛП/opus-mt-tc-big-ar-en',
-            ('ar', 'ru'): 'Хельсинки-НЛП/opus-mt-ar-ru',
+            ('he', 'en'): 'Helsinki-NLP/opus-mt-tc-big-he-en',
+            ('he', 'ru'): 'Helsinki-NLP/opus-mt-he-ru',
+            ('ar', 'en'): 'Helsinki-NLP/opus-mt-tc-big-ar-en',
+            ('ar', 'ru'): 'Helsinki-NLP/opus-mt-ar-ru',
         }
 
     def run(self):

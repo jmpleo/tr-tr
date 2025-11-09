@@ -247,10 +247,7 @@ class SpeechRecognitionApp(QMainWindow):
         self.copy_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
         self.save_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
 
-    def update_progress(self, value, message, step_message=""):
-        #self.progress_bar.setValue(value)
-        self.progress_bar.setRange(0, 0)
-        # self.progress_label.setText(step_message)
+    def update_progress(self, message):
         self.status_label.setText(message)
 
     def add_segment(self, start, end, text, translations):
