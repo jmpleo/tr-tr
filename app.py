@@ -6,8 +6,6 @@ import logging
 import traceback
 from datetime import datetime
 
-from style import style_css
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,6 +13,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+styles = ""
+with open('style.css') as s:
+    styles = s.read()
+
+save_dir = os.path.join(os.path.expanduser("~"), 'tr-tr')
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir, exist_ok=True)
 
 try:
     transcribe_model = WhisperModel('./repo/Systran/faster-whisper-small')
@@ -24,59 +30,53 @@ except Exception as e:
     transcribe_model = None
 
 translate_model_paths = {
-    'he': './repo/Helsinki-NLP/opus-mt-tc-big-he-en',
-    'ar': './repo/Helsinki-NLP/opus-mt-tc-big-ar-en',
+    ('he', 'en'): './repo/Helsinki-NLP/opus-mt-tc-big-he-en',
+    ('he', 'ru'): './repo/Helsinki-NLP/opus-mt-he-ru',
+    ('ar', 'en'): './repo/Helsinki-NLP/opus-mt-tc-big-ar-en',
+    ('ar', 'ru'): './repo/Helsinki-NLP/opus-mt-ar-ru',
 }
 
 translation_models = {}
 
-def load_translation_model(language):
-    if language in translation_models:
-        return translation_models[language]
+def load_translation_model(from_lang, target_lang):
+    if (from_lang, target_lang) in translation_models:
+        return translation_models[from_lang, target_lang]
     try:
-        if language in translate_model_paths:
-            model_path = translate_model_paths[language]
+        if (from_lang, target_lang) in translate_model_paths:
+            model_path = translate_model_paths[from_lang, target_lang]
             if not os.path.exists(model_path):
                 logger.warning(f"Model path does not exist: {model_path}")
                 return None
 
             model = pipeline("translation", model=model_path)
 
-            translation_models[language] = model
-            logger.info(f"Translation model for {language} loaded successfully")
+            translation_models[from_lang, target_lang] = model
+            logger.info(f"Translation model for {from_lang}-{target_lang} loaded successfully")
             return model
         else:
-            logger.warning(f"No translation model available for language: {language}")
+            logger.warning(f"No translation model available for language: {from_lang}-{target_lang}")
             return None
     except Exception as e:
-        logger.error(f"Failed to load translation model for {language}: {e}")
+        logger.error(f"Failed to load translation model for {from_lang}-{target_lang}: {e}")
         return None
 
 
-def save_to_txt(segments, include_translation=False, filename=None):
-    if filename is None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{timestamp}.txt"
-
+def save_to_txt(save_dir, segments, prefix=""):
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    filename = os.path.join(save_dir, f"{prefix}_{timestamp}.txt")
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             if not segments:
                 f.write("Речь в аудио не распознана\n")
                 return filename
 
-            for segment in segments:
+            for start, end, text, translations in segments:
                 try:
-                    if include_translation and len(segment) == 4:
-                        start, end, text, translation = segment
-                        f.write(f"[{start:.2f}s - {end:.2f}s]\n")
-                        f.write(f"Речь: {text}\n")
-                        f.write(f"Перевод: {translation}\n")
-                        f.write("-" * 40 + "\n")
-                    elif len(segment) == 3:
-                        start, end, text = segment
-                        f.write(f"[{start:.2f}s - {end:.2f}s]\n")
-                        f.write(f"Речь: {text}\n")
-                        f.write("-" * 40 + "\n")
+                    f.write(f"[{start:.2f}s - {end:.2f}s]\n")
+                    f.write(f"Речь: {text}\n")
+                    for target_lang, text_t in translations.items():
+                        f.write(f"Перевод ({target_lang}): {text_t}\n")
+                    f.write("-" * 40 + "\n")
                 except Exception as e:
                     logger.error(f"Error saving segment to TXT: {e}")
                     f.write("Ошибка форматирования сегмента\n")
@@ -88,107 +88,64 @@ def save_to_txt(segments, include_translation=False, filename=None):
         logger.error(f"Failed to save file: {e}")
         return None
 
-
-def transcribe(audio_file, progress=gr.Progress()):
+def transcribe_translate(audio_file, target_langs, progress=gr.Progress()):
     if transcribe_model is None:
-        yield 0, 0, "Ошибка: модель недоступна"
+        yield 0, 0, "Ошибка: выбранная модель не загрузилась", {}
         return
 
     if not audio_file or not os.path.exists(audio_file):
-        yield 0, 0, f"Ошибка: не существует аудио {audio_file}"
-        return
-
-    try:
-        segments, _ = transcribe_model.transcribe(audio_file)
-        segments_list = list(segments)
-        total_segments = len(segments_list)
-
-        for i, segment in enumerate(segments_list):
-            try:
-                text = segment.text.strip() if segment.text else ""
-                progress((i, total_segments), desc="Транскрибирование...")
-                yield segment.start, segment.end, text
-            except Exception as e:
-                logger.error(f"Error processing segment: {e}")
-                yield segment.start, segment.end, f"Ошибка: {str(e)}"
-
-    except Exception as e:
-        logger.error(f"Transcription failed: {e}")
-        yield 0, 0, f"Ошибка: {str(e)}"
-
-
-def transcribe_translate(audio_file, progress=gr.Progress()):
-    if transcribe_model is None:
-        yield 0, 0, "Ошибка: модель недоступна", ""
-        return
-
-    if not audio_file or not os.path.exists(audio_file):
-        yield 0, 0, f"Ошибка: не существует аудио {audio_file}", ""
+        yield 0, 0, f"Ошибка: {audio_file} недоступен", {}
         return
 
     try:
         segments, info = transcribe_model.transcribe(audio_file)
-        segments_list = list(segments)
-        total_segments = len(segments_list)
 
         detected_language = info.language if hasattr(info, 'language') else None
 
+        progress(0.15, desc=f"Распознавание с '{detected_language}'...")
         logger.info(f"Detected language: {detected_language}")
 
-        translate_model = None
-        if detected_language in translate_model_paths:
-            translate_model = load_translation_model(detected_language)
+        translate_models = {}
+        if target_langs is not None:
+            for target_lang in target_langs:
+                if (detected_language, target_lang) in translate_model_paths:
+                    translate_models[target_lang] = load_translation_model(detected_language, target_lang)
+                    progress(0.25, desc=f"Инициализация переводчика {detected_language}-{target_lang}...")
 
-        for i, segment in enumerate(segments_list):
-            try:
-                text = segment.text.strip() if segment.text else ""
+        for i, segment in enumerate(segments, 1):
+            progress(0.5, desc=f"Распознавание {i} сегмента...")
 
-                if translate_model:
-                    try:
-                        progress((i, total_segments), desc="Перевод...")
-                        text_en = translate_model(text)[0]['translation_text']
-                    except Exception as e:
-                        logger.error(f"Translation failed: {e}")
-                        text_en = f"Ошибка перевода: {str(e)}"
-                else:
-                    text_en = "Нет доступной модели для перевода этого языка"
+            text = segment.text.strip() if segment.text else ""
+            text_t = {}
+            for target_lang, translate_model in translate_models.items():
+                try:
+                    text_t[target_lang] = translate_model(text)[0]['translation_text']
+                    progress(0.5, desc=f"Перевод {i} сегмента ({detected_language}-{target_lang})...")
+                except Exception as e:
+                    logger.error(f"Translation failed: {e}")
+                    text_t[target_lang] = "Ошибка перевода"
 
-                yield segment.start, segment.end, text, text_en
-
-            except Exception as e:
-                logger.error(f"Error processing segment: {e}")
-                yield segment.start, segment.end, f"Ошибка: {str(e)}", "Проблема при переводе"
+            yield segment.start, segment.end, text, text_t
 
     except Exception as e:
         logger.error(f"Transcription/translation failed: {e}")
-        yield 0, 0, f"Проблема при транскрибации: {str(e)}", ""
+        yield 0, 0, "", {}
 
 
-def format_output(segments, include_translation=False):
+def format_output(segments):
     if not segments:
         return "<div class='result-container'><p class='no-speech'>Речь в аудио не распознана</p></div>"
 
     html_output = "<div class='result-container'>"
 
-    for segment in segments:
+    for start, end, text, translations in segments:
         try:
-            if include_translation and len(segment) == 4:
-                start, end, text, translation = segment
-                html_output += f"""
-                <div class='segment translation-segment'>
-                    <small class='timestamp'>[{start:.2f}s - {end:.2f}s]</small>
-                    <p class='text'><strong>Речь:</strong> {text}</p>
-                    <p class='translation'><strong>Перевод:</strong> {translation}</p>
-                </div>
-                """
-            elif len(segment) == 3:
-                start, end, text = segment
-                html_output += f"""
-                <div class='segment transcription-segment'>
-                    <small class='timestamp'>[{start:.2f}s - {end:.2f}s]</small>
-                    <p class='text'>{text}</p>
-                </div>
-                """
+            html_output += f"""<div class='segment translation-segment'>
+                <small class='timestamp'>[{start:.2f}s - {end:.2f}s]</small>
+                <p class='text'>{text}</p>"""
+            for target_lang, text_t in translations.items():
+                html_output += f"<p class='translation'><strong>({target_lang})</strong> {text_t}</p>"
+            html_output +="</div>"
         except Exception as e:
             logger.error(f"Error formatting segment: {e}")
             html_output += f"""
@@ -200,26 +157,34 @@ def format_output(segments, include_translation=False):
     html_output += "</div>"
     return html_output
 
-def process(audio_file, text_en_checkbox, progress=gr.Progress()):
+
+def result_error(text):
+    return f"<div class='result-container'><p class='error'>{text}</p></div>"
+
+
+def process(audio_file, target_langs, progress=gr.Progress()):
     if not audio_file:
-        return "<div class='result-container'><p class='error'>Загрузите аудио</p></div>"
+        return result_error('Загрузите аудио')
 
     if transcribe_model is None:
-        return "<div class='result-container'><p class='error'>Модель транскрипции недоступна.</p></div>"
+        return result_error('Модель транскрипции недоступна')
 
     try:
-        progress(0, desc="Начало обработки...")
+        progress(0, desc="Инициализация...")
 
-        if text_en_checkbox:
-            segments = list(transcribe_translate(audio_file, progress))
-        else:
-            segments = list(transcribe(audio_file, progress))
+        segments = list(transcribe_translate(audio_file, target_langs, progress))
 
-        txt_filename = save_to_txt(segments, text_en_checkbox)
+        progress(0.95, desc=f"Сохранение в файл...")
 
-        progress(1.0, desc="Обработка завершена!")
+        txt_filename = save_to_txt(
+            save_dir=save_dir,
+            segments=segments,
+            prefix=os.path.basename(audio_file).replace('.', '_')
+        )
 
-        html_result = format_output(segments, text_en_checkbox)
+        progress(1.0, desc="Завершено")
+
+        html_result = format_output(segments)
 
         if txt_filename:
             html_result += f"""
@@ -239,34 +204,50 @@ def process(audio_file, text_en_checkbox, progress=gr.Progress()):
     except Exception as e:
         logger.error(f"Processing failed: {e}")
         logger.error(traceback.format_exc())
-        return f"<div class='result-container'><p class='error'>Во время обработки произошла ошибка: {str(e)}</p></div>"
+        return result_error(f'Во время обработки произошла ошибка: {str(e)}')
 
 
 interface = gr.Interface(
-    title="Распознавание речи",
-    description="Перевод доступен только для Иврита и Арабского. Результаты автоматически сохраняются в текстовый файл.",
-    allow_flagging="never",
-    css=style_css,
+    title="Распознование речи без этих ваших интернетов",
+    description="",
+    flagging_mode="never",
+    css=styles,
     inputs=[
         gr.Audio(
             type="filepath",
             label="Загрузить аудио",
             sources=["upload", "microphone"],
         ),
-        gr.Checkbox(
-            label="Перевод на английский",
-            value=True,
-            info="Включить перевод для поддерживаемых языков",
-        )
+        gr.CheckboxGroup(
+            choices=[
+                ("Английский", "en"),
+                ("Русский", "ru")
+            ],
+            label="Перевод",
+            info=f"""Дополнительно переводить для поддерживаемых языков ({', '.join(
+                f'{from_lang}-{target_lang}'
+                for from_lang, target_lang in translate_model_paths
+            )})""",
+        ),
+        # gr.Checkbox(
+        #     label="Перевод на русский",
+        #     value=False,
+        #     info=f"Дополнительно переводить с поддерживаемых языков ({','.join(translate_model_paths.keys())})",
+        # ),
+        # gr.FileExplorer(
+        #     label="Директория для результата",
+        #     file_count="single",
+        #     root_dir=os.path.expanduser("~"),
+        #     glob="**/*",
+        #     ignore_glob=".*/",
+        #     max_height=300
+        # )
     ],
     submit_btn="Распознать речь",
     stop_btn="Остановить",
     clear_btn="Убрать",
     fn=process,
-    outputs=gr.HTML(
-        label="Результат",
-        show_label=True
-    )
+    outputs=gr.HTML()
 )
 
 
@@ -275,7 +256,10 @@ if __name__ == "__main__":
         interface.launch(
             server_name="127.0.0.1",
             share=False,
-            show_error=True
+            show_error=False,
+            max_threads=1,
+            show_api=False,
+            inbrowser=True
         )
     except Exception as e:
         logger.error(f"Failed to launch interface: {e}")

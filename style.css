@@ -1,4 +1,5 @@
-style_css = """
+footer {visibility: hidden}
+
 .app-container {
     max-width: 900px;
     margin: 0 auto;
@@ -6,7 +7,6 @@ style_css = """
 }
 
 .result-container {
-    max-height: 400px;
     overflow-y: auto;
 }
 
@@ -14,6 +14,7 @@ style_css = """
     margin-bottom: 15px;
     padding: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e4e4e7;
 }
 
 .error-segment {
@@ -84,5 +85,3 @@ style_css = """
 .save-info.error p {
     color: #721c24;
 }
-
-"""
