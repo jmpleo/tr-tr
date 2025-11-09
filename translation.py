@@ -4,8 +4,11 @@ from transformers import pipeline
 
 
 class Translation:
-    def __init__(self, translate_model_paths):
-        self.translate_model_paths = translate_model_paths
+    def __init__(self, translate_model_paths, root_dir):
+        self.translate_model_paths = {
+            name: os.path.join(root_dir, path)
+            for name, path in translate_model_paths.items()
+        }
         self.translation_models = {}
 
     def load_translation_model(self, from_lang, target_lang):

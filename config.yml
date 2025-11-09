@@ -1,0 +1,9 @@
+transcribe_model: Systran/faster-whisper-small
+#transcribe_model: Systran/faster-whisper-medium
+#transcribe_model: Systran/faster-whisper-base
+#transcribe_model: Systran/faster-whisper-tiny
+#transcribe_model: Systran/faster-whisper-large-v2
+#transcribe_model: Systran/faster-whisper-large-v3
+#transcribe_model: Systran/faster-distil-whisper-large-v2
+
+

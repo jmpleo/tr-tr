@@ -4,6 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+transformers = "*"
+faster-whisper = "*"
+sentencepiece = "*"
+torch = "*"
+sacremoses = "*"
+pyqt6 = "*"
 
 [dev-packages]
 

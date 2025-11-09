@@ -139,6 +139,8 @@ PROGRESS_BAR = """
         min-height: 5px;
         height: 10px;
     }
+"""
+"""
     QProgressBar::chunk {
         background-color: #007bff;
         border-radius: 2px;

@@ -10,7 +10,6 @@ from PyQt6.QtGui import QFont, QTextCursor
 
 
 from styles import (
-    AUDIO_PATH_LABEL,
     STATUS_LABEL_ERROR,
     STATUS_LABEL_WARNING,
     STATUS_LABEL_READY,
@@ -121,19 +120,21 @@ class SpeechRecognitionApp(QMainWindow):
         progress_card.setStyleSheet(PROGRESS_CARD)
         progress_layout = QVBoxLayout(progress_card)
 
-        progress_title = QLabel("Прогресс")
-        progress_title.setStyleSheet(SECTION_LABEL)
-        progress_layout.addWidget(progress_title)
+        #progress_title = QLabel("Прогресс")
+        #progress_title.setStyleSheet(SECTION_LABEL)
+        #progress_layout.addWidget(progress_title)
 
         self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
         self.progress_bar.setStyleSheet(PROGRESS_BAR)
+        self.progress_bar.setHidden(True)
 
-        self.progress_label = QLabel("Выберите файл")
-        self.progress_label.setStyleSheet(PROGRESS_LABEL)
+        #self.progress_label = QLabel("Выберите файл")
+        #self.progress_label.setStyleSheet(PROGRESS_LABEL)
 
-        progress_layout.addWidget(self.progress_bar)
-        progress_layout.addWidget(self.progress_label)
-        left_layout.addWidget(progress_card)
+        #progress_layout.addWidget(self.progress_bar)
+        #progress_layout.addWidget(self.progress_label)
+        #left_layout.addWidget(progress_card)
 
         # Панель управления результатами
         results_header = QWidget()
@@ -177,6 +178,7 @@ class SpeechRecognitionApp(QMainWindow):
         self.status_label = QLabel("Выберите аудиофайл для начала работы")
         self.status_label.setStyleSheet(STATUS_LABEL_READY)
         right_layout.addWidget(self.status_label)
+        right_layout.addWidget(self.progress_bar)
 
         self.update_ui_state()
 
@@ -199,7 +201,7 @@ class SpeechRecognitionApp(QMainWindow):
         if file_path:
             self.audio_file_path = file_path
             self.audio_path_label.setText(os.path.basename(file_path))
-            self.status_label.setText(f"Выбран файл: {os.path.basename(file_path)}")
+            self.status_label.setText(f"Выбран файл: {file_path}")
             self.clear_results()
             self.update_ui_state()
 
@@ -237,6 +239,7 @@ class SpeechRecognitionApp(QMainWindow):
         self.processing_thread.start()
 
     def set_interactive_elements_enabled(self, enabled):
+        self.progress_bar.setHidden(enabled)
         self.select_audio_btn.setEnabled(enabled)
         self.translate_en.setEnabled(enabled)
         self.translate_ru.setEnabled(enabled)
@@ -245,8 +248,9 @@ class SpeechRecognitionApp(QMainWindow):
         self.save_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
 
     def update_progress(self, value, message, step_message=""):
-        self.progress_bar.setValue(value)
-        self.progress_label.setText(step_message)
+        #self.progress_bar.setValue(value)
+        self.progress_bar.setRange(0, 0)
+        # self.progress_label.setText(step_message)
         self.status_label.setText(message)
 
     def add_segment(self, start, end, text, translations):
@@ -275,8 +279,9 @@ class SpeechRecognitionApp(QMainWindow):
 
     def processing_finished(self, segments, txt_filename):
         self.set_interactive_elements_enabled(True)
+        self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100)
-        self.progress_label.setText("Обработка завершена")
+        # self.progress_label.setText("Обработка завершена")
 
         if not segments:
             self.status_label.setText("Речь в аудио не распознана")
@@ -289,7 +294,7 @@ class SpeechRecognitionApp(QMainWindow):
 
     def processing_error(self, error_message):
         self.process_btn.setEnabled(True)
-        self.progress_label.setText("Ошибка обработки")
+        # self.progress_label.setText("Ошибка обработки")
         self.status_label.setText(f"Ошибка: {error_message}")
         self.status_label.setStyleSheet(STATUS_LABEL_ERROR)
         QMessageBox.critical(self, "Ошибка", f"Во время обработки произошла ошибка:\n{error_message}")

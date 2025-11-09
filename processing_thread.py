@@ -24,7 +24,7 @@ class ProcessingThread(QThread):
             if not self.audio_file or not os.path.exists(self.audio_file):
                 self.error_occurred.emit(f"Аудио файл недоступен: {self.audio_file}")
                 return
-            
+
             self.progress_updated.emit(5, "Распознование языка...", "Шаг 1/4")
 
             segments, info = self.transcribe_model.transcribe(self.audio_file)
@@ -38,7 +38,7 @@ class ProcessingThread(QThread):
                     model = self.translation.load_translation_model(detected_language, target_lang)
                     if model:
                         translate_models[target_lang] = model
-                        self.progress_updated.emit(25, 
+                        self.progress_updated.emit(25,
                             f"Загрузка переводчика с '{detected_language}' на '{target_lang}'...",
                             "Шаг 2/4"
                         )
