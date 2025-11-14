@@ -1,2 +1,8 @@
 repo
 __pycache__
+venv
+python-*
+logs
+*.mp3
+*.rar
+*.exe

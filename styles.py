@@ -39,7 +39,7 @@ AUDIO_PATH_LABEL = """
 SELECT_AUDIO_BUTTON = """
     QPushButton {
         background-color: #ffffff;
-        border: 2px dashed #757575;
+        border: 2px solid #757575;
         padding: 8px;
         border-radius: 5px;
         color: #000000;
@@ -48,7 +48,7 @@ SELECT_AUDIO_BUTTON = """
     }
     QPushButton:hover {
         background-color: #eeeeee;
-        border: 2px dashed #424242;
+        border: 2px solid #424242;
     }
     QPushButton:pressed {
         background-color: #e0e0e0;
@@ -194,19 +194,36 @@ EXPORT_BUTTON = """
     }
 """
 
+# RESULTS_TEXT = """
+#     QTextEdit {
+#         background-color: #ffffff;
+#         border: 2px solid #e0e0e0;
+#         border-radius: 8px;
+#         padding: 15px;
+#         font-family: 'Segoe UI', Arial, sans-serif;
+#         font-size: 15px;
+#         line-height: 1.4;
+#         color: #000000;
+#         font-weight: bold;
+#         selection-background-color: #007bff;
+#     }
+# """
+
 RESULTS_TEXT = """
     QTextEdit {
-        background-color: #ffffff;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 15px;
-        font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.4;
-        color: #000000;
-        selection-background-color: #007bff;
+        background-color: #ffffff; /* Цвет фона */
+        border: 2px solid #e0e0e0; /* Цвет границы */
+        border-radius: 8px; /* Радиус границы */
+        padding: 15px; /* Отступы */
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; /* Удобные шрифты */
+        font-size: 16px; /* Увеличенный размер шрифта */
+        line-height: 1.5; /* Улучшенный межстрочный интервал */
+        color: #333333; /* Темно-серый цвет текста для лучшего контраста */
+        font-weight: normal; /* Стандартный стиль шрифта */
+        selection-background-color: #007bff; /* Цвет выделения */
     }
 """
+
 
 STATUS_LABEL_READY = """
     QLabel {

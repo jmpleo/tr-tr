@@ -4,14 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-transformers = "*"
 faster-whisper = "*"
-sentencepiece = "*"
-torch = "*"
-sacremoses = "*"
 pyqt6 = "*"
+transformers = "*"
+sentencepiece = "*"
+torch = "==2.8.0"
 
 [dev-packages]
 
 [requires]
 python_version = "3.11"
+python_full_version = "3.11.0"

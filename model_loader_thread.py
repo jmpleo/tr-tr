@@ -1,5 +1,5 @@
-from PyQt6.QtCore import QThread, pyqtSignal
 from faster_whisper import WhisperModel
+from PyQt6.QtCore import QThread, pyqtSignal
 
 
 class ModelLoaderThread(QThread):

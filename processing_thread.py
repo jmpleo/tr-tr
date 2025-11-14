@@ -1,7 +1,8 @@
 import os
 import logging
 from datetime import datetime
-from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from PyQt6.QtCore import QThread, pyqtSignal
+from utils import format_seconds
 
 
 class ProcessingThread(QThread):
@@ -43,16 +44,16 @@ class ProcessingThread(QThread):
                         translate_models[target_lang] = model
 
 
-            self.progress_updated.emit("Сегментация...")
+            self.progress_updated.emit(f"({detected_language}) Сегментация...")
 
             for i, segment in enumerate(segments):
-                self.progress_updated.emit(f"Распознавание аудиосегмента {i+1}...")
+                self.progress_updated.emit(f"({detected_language}) Преобразование сегмента {i+1}...")
 
                 text = segment.text.strip() if segment.text else ""
                 translations = {}
 
                 for target_lang, translate_model in translate_models.items():
-                    self.progress_updated.emit(f"Перевод аудиосегмента {i+1}...")
+                    self.progress_updated.emit(f"({detected_language}) Перевод сегмента {i+1}...")
                     try:
                         translated_text = translate_model(text)[0]['translation_text']
                         translations[target_lang] = translated_text
@@ -64,13 +65,12 @@ class ProcessingThread(QThread):
                 self.segments.append(segment_data)
                 self.segment_processed.emit(segment.start, segment.end, text, translations)
                 checkpoint = self.save_results(checkpoint=True)
-                self.progress_updated.emit(f"Обработаные сегменты сохранены в {checkpoint}...")
+                self.progress_updated.emit(f"({detected_language}) Обработаные сегменты сохранены в {checkpoint}...")
 
 
             self.progress_updated.emit("Сохранение...")
             txt_filename = self.save_results()
 
-            self.progress_updated.emit("Выполнено")
             self.finished_processing.emit(self.segments, txt_filename)
 
         except Exception as e:
@@ -80,7 +80,8 @@ class ProcessingThread(QThread):
     def save_results(self, checkpoint=False):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         name = os.path.basename(self.audio_file).replace('.', '_')
-        name = f'.{name}.{timestamp}' if checkpoint else f'{name}_{timestamp}.txt'
+        name = f'.{name}.txt' if checkpoint else f'.{name}_{timestamp}.txt'
+
         filename = os.path.join(self.save_dir, name)
 
         try:
@@ -90,14 +91,15 @@ class ProcessingThread(QThread):
                     return filename
 
                 for start, end, text, translations in self.segments:
-                    f.write(f"[{start:.2f}s - {end:.2f}s]\n")
+                    f.write(f"[{format_seconds(start)} - {format_seconds(end)}\n")
                     f.write(f"{text}\n")
-                    f.write("Перевод:\n")
-                    for target_lang, text_t in translations.items():
-                        f.write(f"({target_lang}) {text_t}\n")
+                    if translations:
+                        for target_lang, text_t in translations.items():
+                            f.write(f"({target_lang}) {text_t}\n")
                     f.write("-" * 40 + "\n")
 
             logging.info(f"Results saved to: {filename}")
+
             return filename
         except Exception as e:
             logging.error(f"Failed to save file: {e}")

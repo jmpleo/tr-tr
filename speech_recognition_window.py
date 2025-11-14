@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (
     QTextEdit, QMessageBox
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QTextCursor
+from PyQt6.QtGui import QFont, QTextCursor, QIcon
+from utils import format_seconds
 
 
 from styles import (
@@ -30,7 +31,7 @@ from styles import (
 from processing_thread import ProcessingThread
 
 
-class SpeechRecognitionApp(QMainWindow):
+class SpeechRecognitionWindow(QMainWindow):
     def __init__(self, transcribe_model, translation):
         super().__init__()
         self.transcribe_model = transcribe_model
@@ -45,18 +46,19 @@ class SpeechRecognitionApp(QMainWindow):
 
     def setup_ui(self):
         self.setWindowTitle("SpeechTranscribe")
+        self.setWindowIcon(QIcon(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.png")
+        ))
         self.setMinimumSize(1200, 680)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.setCentralWidget(main_splitter)
 
-        # ЛЕВАЯ ПАНЕЛЬ - НАСТРОЙКИ
         left_panel = QWidget()
         left_panel.setMaximumWidth(350)
         left_panel.setStyleSheet(LEFT_PANEL)
         left_layout = QVBoxLayout(left_panel)
         left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # Правая панель - результаты
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
 
@@ -64,23 +66,23 @@ class SpeechRecognitionApp(QMainWindow):
         main_splitter.addWidget(right_panel)
         main_splitter.setSizes([300, 900])
 
-        app_title = QLabel("Распознование речи")
+        app_title = QLabel("Секретарь Олег")
         app_title.setFont(QFont("Arial", 18, QFont.Weight.Bold))
-        app_title.setStyleSheet("color: #2c3e50; margin-bottom: 20px;")
+        app_title.setStyleSheet("color: #2c3e50; margin-bottom: 3px;")
         left_layout.addWidget(app_title)
+
+        app_desc = QLabel("Внимательно прослушаю.\nНапишу содержание.")
+        app_desc.setFont(QFont("Arial", 12))
+        app_desc.setStyleSheet("color: #2c3e50; margin-top: 0px; margin-bottom: 20px;")
+        left_layout.addWidget(app_desc)
 
         upload_card = QWidget()
         upload_card.setStyleSheet(UPLOAD_CARD)
         upload_layout = QVBoxLayout(upload_card)
 
-        #self.audio_label = QLabel("Аудио")
-        #self.audio_label.setStyleSheet(SECTION_LABEL)
-        #upload_layout.addWidget(self.audio_label)
-
-        #self.audio_path_label = QLabel("Файл не выбран")
-        #self.audio_path_label.setWordWrap(True)
-        #self.audio_path_label.setStyleSheet(AUDIO_PATH_LABEL)
-        #upload_layout.addWidget(self.audio_path_label)
+        upload_title = QLabel("Аудио:")
+        upload_title.setStyleSheet(SECTION_LABEL)
+        upload_layout.addWidget(upload_title)
 
         self.select_audio_btn = QPushButton("Выбрать файл")
         self.select_audio_btn.clicked.connect(self.select_audio_file)
@@ -90,7 +92,6 @@ class SpeechRecognitionApp(QMainWindow):
         left_layout.addWidget(upload_card)
         left_layout.addSpacing(5)
 
-        # Секция настроек перевода
         settings_card = QWidget()
         settings_card.setStyleSheet(SETTINGS_CARD)
         settings_layout = QVBoxLayout(settings_card)
@@ -109,78 +110,74 @@ class SpeechRecognitionApp(QMainWindow):
         left_layout.addWidget(settings_card)
         left_layout.addSpacing(5)
 
-        # Кнопка обработки
         self.process_btn = QPushButton("Начать распознавание")
         self.process_btn.clicked.connect(self.process_audio)
         self.process_btn.setStyleSheet(PROCESS_BUTTON)
         left_layout.addWidget(self.process_btn)
 
-        # Прогресс
         progress_card = QWidget()
         progress_card.setStyleSheet(PROGRESS_CARD)
-        progress_layout = QVBoxLayout(progress_card)
-
-        #progress_title = QLabel("Прогресс")
-        #progress_title.setStyleSheet(SECTION_LABEL)
-        #progress_layout.addWidget(progress_title)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setStyleSheet(PROGRESS_BAR)
         self.progress_bar.setHidden(True)
 
-        #self.progress_label = QLabel("Выберите файл")
-        #self.progress_label.setStyleSheet(PROGRESS_LABEL)
-
-        #progress_layout.addWidget(self.progress_bar)
-        #progress_layout.addWidget(self.progress_label)
-        #left_layout.addWidget(progress_card)
-
-        # Панель управления результатами
         results_header = QWidget()
         results_header_layout = QHBoxLayout(results_header)
 
         self.audio_path_label = QLabel("Файл не выбран")
         self.audio_path_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
 
-        #results_title = QLabel("Результаты распознавания")
-        #results_title.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-
-        # Кнопки экспорта
         export_widget = QWidget()
         export_layout = QHBoxLayout(export_widget)
         export_layout.setContentsMargins(0, 0, 0, 0)
 
+        self.edit_btn = QPushButton("Изменить")
+        self.edit_btn.clicked.connect(self.edit_result_text)
         self.copy_btn = QPushButton("Копировать")
         self.copy_btn.clicked.connect(self.copy_results)
         self.save_btn = QPushButton("Сохранить")
         self.save_btn.clicked.connect(self.save_results)
 
-        for btn in [self.copy_btn, self.save_btn]:
+        for btn in [self.edit_btn, self.copy_btn, self.save_btn]:
             btn.setStyleSheet(EXPORT_BUTTON)
             export_layout.addWidget(btn)
 
-        #results_header_layout.addWidget(results_title)
         results_header_layout.addWidget(self.audio_path_label)
         results_header_layout.addStretch()
         results_header_layout.addWidget(export_widget)
 
         right_layout.addWidget(results_header)
 
-        # Область с результатами
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setStyleSheet(RESULTS_TEXT)
 
         right_layout.addWidget(self.results_text)
 
-        # Статус бар
         self.status_label = QLabel("Выберите аудиофайл для начала работы")
         self.status_label.setStyleSheet(STATUS_LABEL_READY)
         right_layout.addWidget(self.status_label)
         right_layout.addWidget(self.progress_bar)
 
         self.update_ui_state()
+
+    def edit_result_text(self):
+        if self.results_text.isReadOnly():
+            self.edit_btn.setText("Отменить редактирование")
+            self.copy_btn.setEnabled(False)
+            self.save_btn.setEnabled(False)
+            self.process_btn.setEnabled(False)
+            self.select_audio_btn.setEnabled(False)
+            self.results_text.setReadOnly(False)
+        else:
+            self.edit_btn.setText("Изменить")
+            self.copy_btn.setEnabled(True)
+            self.save_btn.setEnabled(True)
+            self.process_btn.setEnabled(True)
+            self.select_audio_btn.setEnabled(True)
+            self.results_text.setReadOnly(True)
 
     def update_ui_state(self):
         has_audio = self.audio_file_path is not None
@@ -189,18 +186,20 @@ class SpeechRecognitionApp(QMainWindow):
         self.process_btn.setEnabled(has_audio)
         self.copy_btn.setEnabled(has_results)
         self.save_btn.setEnabled(has_results)
+        self.edit_btn.setEnabled(has_results)
 
     def select_audio_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Выберите аудио файл",
             "",
-            "Audio Files (*.mp3 *.wav *.m4a *.ogg *.flac);;All Files (*)"
+            "Audio Files (*.mp3 *.wav *.m4a *.ogg *.flac *.mp4);;All Files (*)"
         )
 
         if file_path:
             self.audio_file_path = file_path
             self.audio_path_label.setText(os.path.basename(file_path))
+            # self.audio_path_label.setText(file_path)
             self.status_label.setText(f"Выбран файл: {file_path}")
             self.clear_results()
             self.update_ui_state()
@@ -246,45 +245,37 @@ class SpeechRecognitionApp(QMainWindow):
         self.process_btn.setEnabled(enabled)
         self.copy_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
         self.save_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
+        self.edit_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
 
     def update_progress(self, message):
         self.status_label.setText(message)
 
     def add_segment(self, start, end, text, translations):
-        """Добавление сегмента в текстовое поле"""
-        current_text = self.results_text.toPlainText()
+        current_text = self.results_text.toHtml()
+        b = format_seconds(start)
+        e = format_seconds(end)
 
-        # Форматирование сегмента
-        segment_text = f"[{start:.2f} - {end:.2f}]\n"
-        segment_text += f"{text}\n"
-        segment_text += "Перевод:\n"
-        # Добавление переводов
-        if translations:
-            for lang, translation in translations.items():
-                segment_text += f"({lang}) {translation}\n"
+        self.results_text.setHtml(
+            current_text
+            + f'<hr/><b>[{b} - {e}]</b><p>{text}</p>'
+            + ''.join(
+                f"<p><b>({lang})</b> {translation}</p>"
+                for lang, translation in translations.items()
+            )
+        )
 
-        segment_text += "\n\n"
-
-        # Добавление к существующему тексту
-        new_text = current_text + segment_text
-        self.results_text.setPlainText(new_text)
-
-        # Прокрутка вниз
         cursor = self.results_text.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.results_text.setTextCursor(cursor)
 
     def processing_finished(self, segments, txt_filename):
         self.set_interactive_elements_enabled(True)
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(100)
-        # self.progress_label.setText("Обработка завершена")
 
         if not segments:
             self.status_label.setText("Речь в аудио не распознана")
             self.status_label.setStyleSheet(STATUS_LABEL_WARNING)
         else:
-            self.status_label.setText(f"Обработка завершена. Результаты сохранены в: {os.path.basename(txt_filename)}")
+            self.status_label.setText(f"Обработка завершена. Результаты сохранены в: {txt_filename}")
             self.status_label.setStyleSheet(STATUS_LABEL_SUCCESS)
 
         self.update_ui_state()
@@ -329,6 +320,6 @@ class SpeechRecognitionApp(QMainWindow):
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(text)
-                self.status_label.setText(f"Результаты сохранены в: {os.path.basename(file_path)}")
+                self.status_label.setText(f"Результаты сохранены в: {file_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить файл:\n{str(e)}")

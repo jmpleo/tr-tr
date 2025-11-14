@@ -10,12 +10,12 @@ class ModelSelectionDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("Настройки транскрибации")
+        self.setWindowTitle("SpeechTranscribe настройки")
         self.setFixedSize(400, 150)
 
         layout = QVBoxLayout()
 
-        label = QLabel("Выберите модель для распознавания речи:")
+        label = QLabel("Выберите модель распознования:")
         layout.addWidget(label)
 
         self.model_combo = QComboBox()
