@@ -31,7 +31,7 @@ class App:
                 ("smallest (~ 2 Гб)", "faster-whisper-base"),
                 ("small (~ 3 Гб)", "faster-whisper-small"),
                 ("medium (~5 Гб)", "faster-whisper-medium"),
-                ("large v2 (~8 Гб)", "faster-whisper-large-v2"),
+                # ("large v2 (~8 Гб)", "faster-whisper-large-v2"),
                 # ("large v3 (~9.1 Гб)", "faster-whisper-large-v3"),
             ]
         }

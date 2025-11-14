@@ -19,6 +19,7 @@ class ProcessingThread(QThread):
         self.save_dir = save_dir
         self.segments = []
         self.translation = translation
+        self._is_running = True
 
     def run(self):
         try:
@@ -26,16 +27,25 @@ class ProcessingThread(QThread):
                 self.error_occurred.emit(f"Аудио файл недоступен: {self.audio_file}")
                 return
 
+            if not self._is_running:
+                return
+
             self.progress_updated.emit("Распознование языка...")
 
             segments, info = self.transcribe_model.transcribe(self.audio_file)
             detected_language = info.language if hasattr(info, 'language') else None
+
+            if not self._is_running:
+                return
 
             self.progress_updated.emit(f"Распознан язык '{detected_language}'")
 
             translate_models = {}
             if self.target_langs:
                 for target_lang in self.target_langs:
+                    if not self._is_running:
+                        return
+
                     self.progress_updated.emit(
                         f"Загрузка переводчика с '{detected_language}' на '{target_lang}'..."
                     )
@@ -43,16 +53,27 @@ class ProcessingThread(QThread):
                     if model:
                         translate_models[target_lang] = model
 
+            if not self._is_running:
+                return
 
             self.progress_updated.emit(f"({detected_language}) Сегментация...")
 
             for i, segment in enumerate(segments):
+                if not self._is_running:
+                    self.progress_updated.emit("Процесс остановлен пользователем")
+                    checkpoint_filename = self.save_results(checkpoint=True)
+                    self.finished_processing.emit(self.segments, checkpoint_filename)
+                    return
+
                 self.progress_updated.emit(f"({detected_language}) Преобразование сегмента {i+1}...")
 
                 text = segment.text.strip() if segment.text else ""
                 translations = {}
 
                 for target_lang, translate_model in translate_models.items():
+                    if not self._is_running:
+                        break
+
                     self.progress_updated.emit(f"({detected_language}) Перевод сегмента {i+1}...")
                     try:
                         translated_text = translate_model(text)[0]['translation_text']
@@ -64,9 +85,18 @@ class ProcessingThread(QThread):
                 segment_data = (segment.start, segment.end, text, translations)
                 self.segments.append(segment_data)
                 self.segment_processed.emit(segment.start, segment.end, text, translations)
+
+                if not self._is_running:
+                    break
+
                 checkpoint = self.save_results(checkpoint=True)
                 self.progress_updated.emit(f"({detected_language}) Обработаные сегменты сохранены в {checkpoint}...")
 
+            if not self._is_running:
+                self.progress_updated.emit("Процесс остановлен пользователем")
+                checkpoint_filename = self.save_results(checkpoint=True)
+                self.finished_processing.emit(self.segments, checkpoint_filename)
+                return
 
             self.progress_updated.emit("Сохранение...")
             txt_filename = self.save_results()
@@ -77,10 +107,14 @@ class ProcessingThread(QThread):
             logging.error(f"Processing failed: {e}")
             self.error_occurred.emit(str(e))
 
+    def stop(self):
+        self._is_running = False
+        self.progress_updated.emit("Останавливается...")
+
     def save_results(self, checkpoint=False):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         name = os.path.basename(self.audio_file).replace('.', '_')
-        name = f'.{name}.txt' if checkpoint else f'.{name}_{timestamp}.txt'
+        name = f'.{name}.txt' if checkpoint else f'{name}_{timestamp}.txt'
 
         filename = os.path.join(self.save_dir, name)
 
@@ -104,4 +138,3 @@ class ProcessingThread(QThread):
         except Exception as e:
             logging.error(f"Failed to save file: {e}")
             return None
-

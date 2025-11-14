@@ -87,8 +87,30 @@ CHECKBOX = """
     }
 """
 
-
-
+CANCEL_BUTTON = """
+    QPushButton {
+        background-color: #dc3545;
+        color: #ffffff;
+        border: 2px solid #c82333;
+        padding: 12px;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 6px;
+        min-height: 15px;
+    }
+    QPushButton:hover {
+        background-color: #c82333;
+        border: 2px solid #a71e2a;
+    }
+    QPushButton:pressed {
+        background-color: #a71e2a;
+    }
+    QPushButton:disabled {
+        background-color: #9e9e9e;
+        border: 2px solid #757575;
+        color: #616161;
+    }
+"""
 
 
 PROCESS_BUTTON = """

@@ -18,7 +18,7 @@ from styles import (
     RESULTS_TEXT,
     EXPORT_BUTTON,
     SECTION_LABEL,
-    PROGRESS_LABEL,
+    CANCEL_BUTTON,
     PROGRESS_BAR,
     PROGRESS_CARD,
     PROCESS_BUTTON,
@@ -110,10 +110,23 @@ class SpeechRecognitionWindow(QMainWindow):
         left_layout.addWidget(settings_card)
         left_layout.addSpacing(5)
 
+        process_buttons_widget = QWidget()
+        process_buttons_layout = QHBoxLayout(process_buttons_widget)
+        process_buttons_layout.setContentsMargins(0, 0, 0, 0)
+
         self.process_btn = QPushButton("Начать распознавание")
         self.process_btn.clicked.connect(self.process_audio)
         self.process_btn.setStyleSheet(PROCESS_BUTTON)
-        left_layout.addWidget(self.process_btn)
+
+        self.cancel_btn = QPushButton("Стоп")
+        self.cancel_btn.clicked.connect(self.cancel_processing)
+        self.cancel_btn.setStyleSheet(CANCEL_BUTTON)
+        self.cancel_btn.setEnabled(False)
+
+        process_buttons_layout.addWidget(self.process_btn)
+        process_buttons_layout.addWidget(self.cancel_btn)
+
+        left_layout.addWidget(process_buttons_widget)
 
         progress_card = QWidget()
         progress_card.setStyleSheet(PROGRESS_CARD)
@@ -182,11 +195,16 @@ class SpeechRecognitionWindow(QMainWindow):
     def update_ui_state(self):
         has_audio = self.audio_file_path is not None
         has_results = len(self.results_text.toPlainText()) > 0
+        is_processing = self.processing_thread is not None and self.processing_thread.isRunning()
 
-        self.process_btn.setEnabled(has_audio)
-        self.copy_btn.setEnabled(has_results)
-        self.save_btn.setEnabled(has_results)
-        self.edit_btn.setEnabled(has_results)
+        self.process_btn.setEnabled(has_audio and not is_processing)
+        self.cancel_btn.setEnabled(is_processing)
+        self.copy_btn.setEnabled(has_results and not is_processing)
+        self.save_btn.setEnabled(has_results and not is_processing)
+        self.edit_btn.setEnabled(has_results and not is_processing)
+        self.select_audio_btn.setEnabled(not is_processing)
+        self.translate_en.setEnabled(not is_processing)
+        self.translate_ru.setEnabled(not is_processing)
 
     def select_audio_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -237,15 +255,18 @@ class SpeechRecognitionWindow(QMainWindow):
         self.processing_thread.error_occurred.connect(self.processing_error)
         self.processing_thread.start()
 
+        self.update_ui_state()
+
+    def cancel_processing(self):
+        if self.processing_thread and self.processing_thread.isRunning():
+            self.processing_thread.stop()
+            self.status_label.setStyleSheet(STATUS_LABEL_WARNING)
+            self.progress_bar.setHidden(True)
+            self.update_ui_state()
+
     def set_interactive_elements_enabled(self, enabled):
         self.progress_bar.setHidden(enabled)
-        self.select_audio_btn.setEnabled(enabled)
-        self.translate_en.setEnabled(enabled)
-        self.translate_ru.setEnabled(enabled)
-        self.process_btn.setEnabled(enabled)
-        self.copy_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
-        self.save_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
-        self.edit_btn.setEnabled(enabled and len(self.results_text.toPlainText()) > 0)
+        self.update_ui_state()
 
     def update_progress(self, message):
         self.status_label.setText(message)
