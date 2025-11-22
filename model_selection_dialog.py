@@ -1,4 +1,6 @@
+from utils import resource_path
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton
+from PyQt6.QtGui import QIcon
 
 
 class ModelSelectionDialog(QDialog):
@@ -10,12 +12,12 @@ class ModelSelectionDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("SpeechTranscribe настройки")
+        self.setWindowTitle("Настройки")
         self.setFixedSize(400, 150)
-
+        self.setWindowIcon(QIcon(resource_path("icon.ico")))
         layout = QVBoxLayout()
 
-        label = QLabel("Выберите модель распознования:")
+        label = QLabel("Выберите модель распознования речи:")
         layout.addWidget(label)
 
         self.model_combo = QComboBox()

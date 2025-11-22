@@ -36,6 +36,26 @@ AUDIO_PATH_LABEL = """
     }
 """
 
+
+LOGO_LABEL = """
+    QLabel {
+        color: #2c3e50;
+        font-size: 22px;
+        margin-bottom: 3px;
+        font-weight: bolder;
+    }
+"""
+
+DESC_LABEL = """
+    QLabel {
+        border: none;
+        margin: 0px;
+        padding: 0px;
+        color: #7f8c8d;
+        font-size: 12px;
+    }
+"""
+
 SELECT_AUDIO_BUTTON = """
     QPushButton {
         background-color: #ffffff;
@@ -233,16 +253,16 @@ EXPORT_BUTTON = """
 
 RESULTS_TEXT = """
     QTextEdit {
-        background-color: #ffffff; /* Цвет фона */
-        border: 2px solid #e0e0e0; /* Цвет границы */
-        border-radius: 8px; /* Радиус границы */
-        padding: 15px; /* Отступы */
-        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; /* Удобные шрифты */
-        font-size: 16px; /* Увеличенный размер шрифта */
-        line-height: 1.5; /* Улучшенный межстрочный интервал */
-        color: #333333; /* Темно-серый цвет текста для лучшего контраста */
-        font-weight: normal; /* Стандартный стиль шрифта */
-        selection-background-color: #007bff; /* Цвет выделения */
+        background-color: #ffffff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: #333333;
+        font-weight: normal;
+        selection-background-color: #007bff;
     }
 """
 

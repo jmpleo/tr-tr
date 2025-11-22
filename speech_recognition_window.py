@@ -5,9 +5,9 @@ from PyQt6.QtWidgets import (
     QWidget, QPushButton, QCheckBox, QLabel, QProgressBar,
     QTextEdit, QMessageBox
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QMutex, QWaitCondition
 from PyQt6.QtGui import QFont, QTextCursor, QIcon
-from utils import format_seconds
+from utils import format_seconds, resource_path
 
 
 from styles import (
@@ -17,6 +17,9 @@ from styles import (
     STATUS_LABEL_SUCCESS,
     RESULTS_TEXT,
     EXPORT_BUTTON,
+    AUDIO_PATH_LABEL,
+    LOGO_LABEL,
+    DESC_LABEL,
     SECTION_LABEL,
     CANCEL_BUTTON,
     PROGRESS_BAR,
@@ -42,13 +45,54 @@ class SpeechRecognitionWindow(QMainWindow):
 
         self.processing_thread = None
         self.audio_file_path = None
+
+        self.segment_queue = []
+        self.segment_mutex = QMutex()
+        self.segment_condition = QWaitCondition()
+        self.processing_segment = False
+
         self.setup_ui()
 
+        self.segment_timer = self.startTimer(10)
+
+
+    def timerEvent(self, event):
+        if self.segment_queue and not self.processing_segment:
+            self.process_next_segment()
+
+    def process_next_segment(self):
+        self.segment_mutex.lock()
+        try:
+            if self.segment_queue:
+                self.processing_segment = True
+                segment_data = self.segment_queue.pop(0)
+                self._add_segment_sync(*segment_data)
+        finally:
+            self.segment_mutex.unlock()
+
+    def _add_segment_sync(self, start, end, text, translations):
+        current_text = self.results_text.toHtml()
+        b = format_seconds(start)
+        e = format_seconds(end)
+
+        self.results_text.setHtml(
+            current_text
+            + f'<hr/><b>[{b} - {e}]</b><p>{text}</p>'
+            + ''.join(
+                f"<p><b>({lang})</b> {translation}</p>"
+                for lang, translation in translations.items()
+            )
+        )
+
+        cursor = self.results_text.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.results_text.setTextCursor(cursor)
+
+        self.processing_segment = False
+
     def setup_ui(self):
-        self.setWindowTitle("SpeechTranscribe")
-        self.setWindowIcon(QIcon(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.png")
-        ))
+        self.setWindowTitle("Распознавание речи с автопереводом")
+        self.setWindowIcon(QIcon(resource_path("icon.ico")))
         self.setMinimumSize(1200, 680)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.setCentralWidget(main_splitter)
@@ -67,14 +111,8 @@ class SpeechRecognitionWindow(QMainWindow):
         main_splitter.setSizes([300, 900])
 
         app_title = QLabel("Секретарь Олег")
-        app_title.setFont(QFont("Arial", 18, QFont.Weight.Bold))
-        app_title.setStyleSheet("color: #2c3e50; margin-bottom: 3px;")
+        app_title.setStyleSheet(LOGO_LABEL)
         left_layout.addWidget(app_title)
-
-        app_desc = QLabel("Внимательно прослушаю.\nНапишу содержание.")
-        app_desc.setFont(QFont("Arial", 12))
-        app_desc.setStyleSheet("color: #2c3e50; margin-top: 0px; margin-bottom: 20px;")
-        left_layout.addWidget(app_desc)
 
         upload_card = QWidget()
         upload_card.setStyleSheet(UPLOAD_CARD)
@@ -84,9 +122,15 @@ class SpeechRecognitionWindow(QMainWindow):
         upload_title.setStyleSheet(SECTION_LABEL)
         upload_layout.addWidget(upload_title)
 
+        upload_title_description = QLabel("Поддержка 99 языков")
+        upload_title_description.setStyleSheet(DESC_LABEL)
+        upload_title_description.setWordWrap(True)
+        #upload_layout.addWidget(upload_title_description)
+
         self.select_audio_btn = QPushButton("Выбрать файл")
         self.select_audio_btn.clicked.connect(self.select_audio_file)
         self.select_audio_btn.setStyleSheet(SELECT_AUDIO_BUTTON)
+        self.select_audio_btn.setToolTip("Поддерживаются 99 языков")
         upload_layout.addWidget(self.select_audio_btn)
 
         left_layout.addWidget(upload_card)
@@ -96,15 +140,23 @@ class SpeechRecognitionWindow(QMainWindow):
         settings_card.setStyleSheet(SETTINGS_CARD)
         settings_layout = QVBoxLayout(settings_card)
 
-        settings_title = QLabel("Дополнительно переводить на:")
+        settings_title = QLabel("Дополнительно переводить на")
         settings_title.setStyleSheet(SECTION_LABEL)
         settings_layout.addWidget(settings_title)
+
+        settings_title_description = QLabel("Языки: he, ar")
+        settings_title_description.setStyleSheet(DESC_LABEL)
+        settings_title_description.setWordWrap(True)
+        #settings_layout.addWidget(settings_title_description)
 
         self.translate_en = QCheckBox("Английский")
         self.translate_ru = QCheckBox("Русский")
 
+        self.translate_en.setChecked(True)
+
         for checkbox in [self.translate_en, self.translate_ru]:
             checkbox.setStyleSheet(CHECKBOX)
+            checkbox.setToolTip("Поддерживаются языки: he, ar")
             settings_layout.addWidget(checkbox)
 
         left_layout.addWidget(settings_card)
@@ -140,7 +192,7 @@ class SpeechRecognitionWindow(QMainWindow):
         results_header_layout = QHBoxLayout(results_header)
 
         self.audio_path_label = QLabel("Файл не выбран")
-        self.audio_path_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        self.audio_path_label.setStyleSheet(AUDIO_PATH_LABEL)
 
         export_widget = QWidget()
         export_layout = QHBoxLayout(export_widget)
@@ -164,7 +216,7 @@ class SpeechRecognitionWindow(QMainWindow):
         right_layout.addWidget(results_header)
 
         self.results_text = QTextEdit()
-        self.results_text.setReadOnly(True)
+        #self.results_text.setReadOnly(True)
         self.results_text.setStyleSheet(RESULTS_TEXT)
 
         right_layout.addWidget(self.results_text)
@@ -196,7 +248,8 @@ class SpeechRecognitionWindow(QMainWindow):
         has_audio = self.audio_file_path is not None
         has_results = len(self.results_text.toPlainText()) > 0
         is_processing = self.processing_thread is not None and self.processing_thread.isRunning()
-
+        self.progress_bar.setHidden(not is_processing)
+        self.status_label.setHidden(not is_processing and not has_results)
         self.process_btn.setEnabled(has_audio and not is_processing)
         self.cancel_btn.setEnabled(is_processing)
         self.copy_btn.setEnabled(has_results and not is_processing)
@@ -217,7 +270,6 @@ class SpeechRecognitionWindow(QMainWindow):
         if file_path:
             self.audio_file_path = file_path
             self.audio_path_label.setText(os.path.basename(file_path))
-            # self.audio_path_label.setText(file_path)
             self.status_label.setText(f"Выбран файл: {file_path}")
             self.clear_results()
             self.update_ui_state()
@@ -238,7 +290,7 @@ class SpeechRecognitionWindow(QMainWindow):
             target_langs.append("ru")
 
         self.clear_results()
-        self.set_interactive_elements_enabled(False)
+        # self.progress_bar.setHidden(False)
         self.status_label.setText("Начало обработки аудио...")
 
         self.processing_thread = ProcessingThread(
@@ -250,48 +302,39 @@ class SpeechRecognitionWindow(QMainWindow):
         )
 
         self.processing_thread.progress_updated.connect(self.update_progress)
-        self.processing_thread.segment_processed.connect(self.add_segment)
+        self.processing_thread.segment_processed.connect(self.queue_segment)
         self.processing_thread.finished_processing.connect(self.processing_finished)
         self.processing_thread.error_occurred.connect(self.processing_error)
         self.processing_thread.start()
 
         self.update_ui_state()
 
+    def queue_segment(self, start, end, text, translations):
+        self.segment_mutex.lock()
+        try:
+            self.segment_queue.append((start, end, text, translations))
+        finally:
+            self.segment_mutex.unlock()
+
     def cancel_processing(self):
         if self.processing_thread and self.processing_thread.isRunning():
+            self.status_label.setText("Останавливается...")
             self.processing_thread.stop()
             self.status_label.setStyleSheet(STATUS_LABEL_WARNING)
-            self.progress_bar.setHidden(True)
-            self.update_ui_state()
 
-    def set_interactive_elements_enabled(self, enabled):
-        self.progress_bar.setHidden(enabled)
-        self.update_ui_state()
+            self.segment_mutex.lock()
+            try:
+                self.segment_queue.clear()
+                self.processing_segment = False
+            finally:
+                self.segment_mutex.unlock()
+
+            self.update_ui_state()
 
     def update_progress(self, message):
         self.status_label.setText(message)
 
-    def add_segment(self, start, end, text, translations):
-        current_text = self.results_text.toHtml()
-        b = format_seconds(start)
-        e = format_seconds(end)
-
-        self.results_text.setHtml(
-            current_text
-            + f'<hr/><b>[{b} - {e}]</b><p>{text}</p>'
-            + ''.join(
-                f"<p><b>({lang})</b> {translation}</p>"
-                for lang, translation in translations.items()
-            )
-        )
-
-        cursor = self.results_text.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
-        self.results_text.setTextCursor(cursor)
-
     def processing_finished(self, segments, txt_filename):
-        self.set_interactive_elements_enabled(True)
-
         if not segments:
             self.status_label.setText("Речь в аудио не распознана")
             self.status_label.setStyleSheet(STATUS_LABEL_WARNING)
@@ -303,19 +346,32 @@ class SpeechRecognitionWindow(QMainWindow):
 
     def processing_error(self, error_message):
         self.process_btn.setEnabled(True)
-        # self.progress_label.setText("Ошибка обработки")
         self.status_label.setText(f"Ошибка: {error_message}")
         self.status_label.setStyleSheet(STATUS_LABEL_ERROR)
         QMessageBox.critical(self, "Ошибка", f"Во время обработки произошла ошибка:\n{error_message}")
+
+        self.segment_mutex.lock()
+        try:
+            self.segment_queue.clear()
+            self.processing_segment = False
+        finally:
+            self.segment_mutex.unlock()
+
         self.update_ui_state()
 
     def clear_results(self):
-        """Очистка результатов"""
         self.results_text.clear()
+
+        self.segment_mutex.lock()
+        try:
+            self.segment_queue.clear()
+            self.processing_segment = False
+        finally:
+            self.segment_mutex.unlock()
+
         self.update_ui_state()
 
     def copy_results(self):
-        """Копирование результатов в буфер обмена"""
         text = self.results_text.toPlainText()
         if text:
             QApplication.clipboard().setText(text)
@@ -324,7 +380,6 @@ class SpeechRecognitionWindow(QMainWindow):
             self.status_label.setText("Нет текста для копирования")
 
     def save_results(self):
-        """Сохранение результатов в файл"""
         text = self.results_text.toPlainText()
         if not text:
             QMessageBox.warning(self, "Предупреждение", "Нет данных для сохранения")

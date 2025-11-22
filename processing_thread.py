@@ -21,6 +21,9 @@ class ProcessingThread(QThread):
         self.translation = translation
         self._is_running = True
 
+    def isRunning(self):
+        return self._is_running
+
     def run(self):
         try:
             if not self.audio_file or not os.path.exists(self.audio_file):
@@ -30,7 +33,7 @@ class ProcessingThread(QThread):
             if not self._is_running:
                 return
 
-            self.progress_updated.emit("Распознование языка...")
+            self.progress_updated.emit("Распознавание языка...")
 
             segments, info = self.transcribe_model.transcribe(self.audio_file)
             detected_language = info.language if hasattr(info, 'language') else None
@@ -98,9 +101,9 @@ class ProcessingThread(QThread):
                 self.finished_processing.emit(self.segments, checkpoint_filename)
                 return
 
-            self.progress_updated.emit("Сохранение...")
             txt_filename = self.save_results()
 
+            self._is_running = False
             self.finished_processing.emit(self.segments, txt_filename)
 
         except Exception as e:
@@ -109,7 +112,6 @@ class ProcessingThread(QThread):
 
     def stop(self):
         self._is_running = False
-        self.progress_updated.emit("Останавливается...")
 
     def save_results(self, checkpoint=False):
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")

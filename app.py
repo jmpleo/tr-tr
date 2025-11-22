@@ -4,8 +4,9 @@ import logging
 from translation import Translation
 from speech_recognition_window import SpeechRecognitionWindow
 from model_selection_dialog import ModelSelectionDialog
-from model_loader_thread import ModelLoaderThread, WhisperModel
+from model_loader_thread import WhisperModel
 from loading_dialog import LoadingDialog
+from utils import resource_path
 from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 
 
@@ -15,10 +16,9 @@ class App:
         self.model_dialog = ModelSelectionDialog(
             available_transcribe_models=self.available_transcribe_models()
         )
-        self.repo_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            'repo'
-        )
+
+        self.repo_dir = resource_path('repo')
+
         self.loading_dialog = LoadingDialog()
         self.window = None
         self.loader_thread = None
@@ -27,11 +27,11 @@ class App:
     def available_transcribe_models():
         return {
             "Systran": [
-                ("tiny (~ 1.8 Гб)", "faster-whisper-tiny"),
-                ("smallest (~ 2 Гб)", "faster-whisper-base"),
-                ("small (~ 3 Гб)", "faster-whisper-small"),
-                ("medium (~5 Гб)", "faster-whisper-medium"),
-                # ("large v2 (~8 Гб)", "faster-whisper-large-v2"),
+                ("tiny ~ 1.5 Гб - самый быстрый ", "faster-whisper-tiny"),
+                ("smallest ~ 2 Гб - быстрый ", "faster-whisper-base"),
+                ("small ~ 3 Гб - скорость + качество", "faster-whisper-small"),
+                ("medium ~ 4 Гб - качество", "faster-whisper-medium"),
+                ("large v2 ~ 5 Гб - лучшее качество ", "faster-whisper-large-v2"),
                 # ("large v3 (~9.1 Гб)", "faster-whisper-large-v3"),
             ]
         }
@@ -65,25 +65,34 @@ class App:
     def load_model(self, model_path):
         #self.loading_dialog.show()
         #self.app.processEvents()
-        model = WhisperModel(
-            model_size_or_path=model_path,
-            device='cpu',
-            compute_type='float32',
-            cpu_threads=3,
-            local_files_only=True
-        )
-        if model:
+        logging.info(f"load_model {model_path}...")
+
+        if not os.path.exists(model_path):
+            self.on_model_error(
+                f"Отсутствует модель распознавания:\n{model_path}"
+            )
+
+        try:
+            model = WhisperModel(
+                model_size_or_path=model_path,
+                device='cpu',
+                compute_type='float32',
+                cpu_threads=3
+            )
+
             self.on_model_loaded(model)
-        else:
-            self.on_model_error("Не получилось загрузить модель")
+
+        except Exception as e:
+            self.on_model_error(
+                f"Не получилось загрузить модель:\n{e}"
+            )
+
         #self.loader_thread = ModelLoaderThread(model_path)
         #self.loader_thread.finished_signal.connect(self.on_model_loaded)
         #self.loader_thread.error_signal.connect(self.on_model_error)
         #self.loader_thread.start()
 
     def on_model_loaded(self, model):
-        #self.loading_dialog.accept()
-        #self.loader_thread.quit()
         translation = self.create_translation()
         self.window = SpeechRecognitionWindow(
             transcribe_model=model,
@@ -98,7 +107,5 @@ class App:
         )
 
     def on_model_error(self, error_msg):
-        QMessageBox.critical(
-            None, "Error", f"Failed to load transcription model: {error_msg}"
-        )
+        QMessageBox.critical(None, "Ошибка", error_msg)
         sys.exit(1)

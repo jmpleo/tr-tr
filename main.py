@@ -2,11 +2,12 @@ import os
 import logging
 from datetime import datetime
 from app import App
+from utils import resource_path
 
 
 def setup_logging():
     log_file = f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.log'
-    logs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    logs_path = resource_path('logs')
 
     if not os.path.exists(logs_path):
         os.makedirs(logs_path)
