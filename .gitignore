@@ -6,3 +6,5 @@ logs
 *.mp3
 *.rar
 *.exe
+dist
+build
