@@ -1,37 +1,48 @@
 import os
 import logging
-from transformers import pipeline
+from transformers import MarianMTModel, MarianTokenizer
+
+
+class OpusMt:
+    def __init__(self, model_path):
+        self.tokenizer = MarianTokenizer.from_pretrained(model_path)
+        self.model = MarianMTModel.from_pretrained(model_path)
+
+    def translate(self, texts):
+
+        translated = self.model.generate(
+            **self.tokenizer(texts, return_tensors="pt", padding=True)
+        )
+
+        return [
+            self.tokenizer.decode(t, skip_special_tokens=True)
+            for t in translated
+        ]
 
 
 class Translation:
-    def __init__(self, translate_model_paths, root_dir):
-        self.translate_model_paths = {
-            name: os.path.join(root_dir, path)
-            for name, path in translate_model_paths.items()
-        }
+    def __init__(self, translate_model_paths):
+        self.translate_model_paths = translate_model_paths
         self.translation_models = {}
 
-    def load_translation_model(self, from_lang, target_lang):
-        if (from_lang, target_lang) in self.translation_models:
-            return self.translation_models[from_lang, target_lang]
-        try:
-            if (from_lang, target_lang) in self.translate_model_paths:
-                model_path = self.translate_model_paths[from_lang, target_lang]
-                if not os.path.exists(model_path):
-                    logging.warning(f"Model path does not exist: {model_path}")
-                    return None
+    def clear_cache(self):
+        self.translation_models.clear()
 
-                model = pipeline(
-                    task="translation",
-                    device="cpu",
-                    model=model_path,
-                )
-                self.translation_models[from_lang, target_lang] = model
-                logging.info(f"Translation model for {from_lang}-{target_lang} loaded successfully")
-                return model
-            else:
-                logging.warning(f"No translation model available for language: {from_lang}-{target_lang}")
+    def load_translation_model(self, from_lang, target_lang):
+        key = (from_lang, target_lang)
+        if key in self.translation_models:
+            return self.translation_models[key]
+
+        if key in self.translate_model_paths:
+            model_path = self.translate_model_paths[key]
+            if not os.path.exists(model_path):
+                logging.warning(f"Model path does not exist: {model_path}")
                 return None
-        except Exception as e:
-            logging.error(f"Failed to load translation model for {from_lang}-{target_lang}: {e}")
+
+            self.translation_models[key] = OpusMt(model_path)
+
+            logging.info(f"Translation model for {from_lang}-{target_lang} loaded successfully")
+            return self.translation_models[key]
+        else:
+            logging.warning(f"No translation model available for language: {from_lang}-{target_lang}")
             return None

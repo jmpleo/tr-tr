@@ -40,9 +40,9 @@ AUDIO_PATH_LABEL = """
 LOGO_LABEL = """
     QLabel {
         color: #2c3e50;
-        font-size: 22px;
+        font-size: 28px;
         margin-bottom: 3px;
-        font-weight: bolder;
+        font-weight: bold;
     }
 """
 

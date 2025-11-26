@@ -22,8 +22,8 @@ class ModelSelectionDialog(QDialog):
 
         self.model_combo = QComboBox()
         for provider, models in self.available_transcribe_models.items():
-            for name, model in models:
-                self.model_combo.addItem(name, (provider, model))
+            for name, model_path in models:
+                self.model_combo.addItem(name, (provider, model_path))
         layout.addWidget(self.model_combo)
 
         button_layout = QHBoxLayout()
@@ -40,8 +40,8 @@ class ModelSelectionDialog(QDialog):
         self.setLayout(layout)
 
     def accept_selection(self):
-        provider, model_name = self.model_combo.currentData()
-        self.selected_model = model_name
+        provider, model_path = self.model_combo.currentData()
+        self.selected_model = model_path
         self.provider = provider
         self.accept()
 

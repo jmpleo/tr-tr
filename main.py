@@ -1,5 +1,6 @@
 import os
 import logging
+import torch
 from datetime import datetime
 from app import App
 from utils import resource_path

@@ -34,6 +34,7 @@ class ProcessingThread(QThread):
                 return
 
             self.progress_updated.emit("Распознавание языка...")
+            logging.info("Распознавание языка...")
 
             segments, info = self.transcribe_model.transcribe(self.audio_file)
             detected_language = info.language if hasattr(info, 'language') else None
@@ -42,45 +43,63 @@ class ProcessingThread(QThread):
                 return
 
             self.progress_updated.emit(f"Распознан язык '{detected_language}'")
+            logging.info(f"Распознан язык '{detected_language}'")
 
-            translate_models = {}
-            if self.target_langs:
-                for target_lang in self.target_langs:
-                    if not self._is_running:
-                        return
+            translate_model_seq = {}
+            for target_lang in self.target_langs:
+                if not self._is_running:
+                    return
+
+                langs = detected_language + target_lang
+                langs_seq = langs.split('-')
+
+                if len(langs_seq) < 2:
+                    continue
+
+                model_seq = []
+                for i in range(len(langs_seq) - 1):
+                    left = langs_seq[i]
+                    right = langs_seq[i + 1]
 
                     self.progress_updated.emit(
-                        f"Загрузка переводчика с '{detected_language}' на '{target_lang}'..."
+                        f"Загрузка переводчика с '{left}' на '{right}'..."
                     )
-                    model = self.translation.load_translation_model(detected_language, target_lang)
-                    if model:
-                        translate_models[target_lang] = model
+                    logging.info(f"Загрузка переводчика с '{left}' на '{right}'...")
+                    model = self.translation.load_translation_model(left, right)
+
+                    if model is None:
+                        model_seq = []
+                        break
+
+                    model_seq.append(model)
+
+                if model_seq:
+                    translate_model_seq[langs] = model_seq
 
             if not self._is_running:
                 return
 
-            self.progress_updated.emit(f"({detected_language}) Сегментация...")
+            self.progress_updated.emit("Сегментация...")
 
             for i, segment in enumerate(segments):
                 if not self._is_running:
-                    self.progress_updated.emit("Процесс остановлен пользователем")
-                    checkpoint_filename = self.save_results(checkpoint=True)
-                    self.finished_processing.emit(self.segments, checkpoint_filename)
                     return
 
-                self.progress_updated.emit(f"({detected_language}) Преобразование сегмента {i+1}...")
+                self.progress_updated.emit(f"Преобразование сегмента {i+1}...")
 
                 text = segment.text.strip() if segment.text else ""
                 translations = {}
 
-                for target_lang, translate_model in translate_models.items():
+                for langs, model_seq in translate_model_seq.items():
                     if not self._is_running:
                         break
 
-                    self.progress_updated.emit(f"({detected_language}) Перевод сегмента {i+1}...")
+                    self.progress_updated.emit(f"({langs}) Перевод сегмента {i+1}...")
+                    translated_text = [text]
                     try:
-                        translated_text = translate_model(text)[0]['translation_text']
-                        translations[target_lang] = translated_text
+                        for model in model_seq:
+                            translated_text = model.translate(translated_text)
+                        translations[langs] = '\n'.join(translated_text)
                     except Exception as e:
                         logging.error(f"Translation failed: {e}")
                         translations[target_lang] = "Ошибка перевода"
@@ -93,18 +112,12 @@ class ProcessingThread(QThread):
                     break
 
                 checkpoint = self.save_results(checkpoint=True)
-                self.progress_updated.emit(f"({detected_language}) Обработаные сегменты сохранены в {checkpoint}...")
+                self.progress_updated.emit(f"Обработаные сегменты сохранены в {checkpoint}...")
 
-            if not self._is_running:
-                self.progress_updated.emit("Процесс остановлен пользователем")
-                checkpoint_filename = self.save_results(checkpoint=True)
-                self.finished_processing.emit(self.segments, checkpoint_filename)
-                return
-
-            txt_filename = self.save_results()
-
-            self._is_running = False
-            self.finished_processing.emit(self.segments, txt_filename)
+            if self._is_running:
+                txt_filename = self.save_results()
+                self._is_running = False
+                self.finished_processing.emit(self.segments, txt_filename)
 
         except Exception as e:
             logging.error(f"Processing failed: {e}")
@@ -134,7 +147,8 @@ class ProcessingThread(QThread):
                             f.write(f"({target_lang}) {text_t}\n")
                     f.write("-" * 40 + "\n")
 
-            logging.info(f"Results saved to: {filename}")
+            if not checkpoint:
+                logging.info(f"Results saved to: {filename}")
 
             return filename
         except Exception as e:
